@@ -145,7 +145,8 @@ public class HomeButtonService extends AccessibilityService {
             return true; // swallow both down and up so Fire OS never sees Home
         }
 
-        if (code == KeyEvent.KEYCODE_BACK) {
+        if (code == KeyEvent.KEYCODE_BACK
+                && GlassPrefs.get(this).getBoolean(GlassPrefs.BACK_LONG_PRESS, true)) {
             if (action == KeyEvent.ACTION_DOWN) {
                 if (event.getRepeatCount() == 0) {
                     backHeld = true;

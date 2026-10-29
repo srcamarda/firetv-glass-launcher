@@ -34,6 +34,27 @@
     <string name="menu_show_all">Show all</string>
     <string name="toast_hidden">%s hidden. To undo: Menu (☰) › Hidden apps</string>
 
+    <!-- Settings pill submenu and Glass settings -->
+    <string name="settings_firetv">Fire TV settings</string>
+    <string name="settings_glass">Glass settings</string>
+    <string name="set_on">On</string>
+    <string name="set_off">Off</string>
+    <string name="set_bing">Bing image of the day: %s</string>
+    <string name="set_bing_pick">Image shown: %s</string>
+    <string name="bing_today">today</string>
+    <plurals name="bing_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <string name="set_dim">Background dimming: %s</string>
+    <string name="dim_light">Light</string>
+    <string name="dim_medium">Medium</string>
+    <string name="dim_strong">Strong</string>
+    <string name="set_back_long_press">Hold Back to open Glass: %s</string>
+    <string name="set_no_hidden">No hidden apps</string>
+    <string name="set_version">Version %s</string>
+    <string name="bing_failed">Couldn\'t download the Bing image</string>
+
     <string name="a11y_label">Glass Home button</string>
     <string name="a11y_description">Opens Glass when the Amazon home screen appears (covering it until Glass is ready) and when you hold Back in any app.</string>
 </resources>

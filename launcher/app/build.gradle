@@ -10,8 +10,8 @@ android {
         applicationId 'com.ivantrj.glasslauncher'
         minSdk 28          // Fire OS 7 (Android 9 / API 28)
         targetSdk 28
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1-fireos7'
     }
 
     compileOptions {

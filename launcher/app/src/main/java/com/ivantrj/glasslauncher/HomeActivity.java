@@ -69,6 +69,9 @@ public class HomeActivity extends Activity {
     private LinearLayout dockRow, inputsMenu;
     private RecyclerView grid;
     private ImageView wallpaper;
+    private TextView wallpaperCredit;
+    private SharedPreferences settings;
+    private long lastBingAttempt;
     private GridAdapter adapter;
 
     private final List<AppInfo> dockApps = new ArrayList<>();
@@ -87,7 +90,13 @@ public class HomeActivity extends Activity {
     private static final class MenuItem {
         final String label;
         final Runnable action;
-        MenuItem(String label, Runnable action) { this.label = label; this.action = action; }
+        final boolean keepOpen; // toggles: the action rebuilds the open menu in place
+        MenuItem(String label, Runnable action) { this(label, action, false); }
+        MenuItem(String label, Runnable action, boolean keepOpen) {
+            this.label = label;
+            this.action = action;
+            this.keepOpen = keepOpen;
+        }
     }
 
     private boolean menuOpen;
@@ -129,6 +138,9 @@ public class HomeActivity extends Activity {
         inputsMenu = findViewById(R.id.inputsMenu);
         menuPanel = findViewById(R.id.menuPanel);
         wallpaper = findViewById(R.id.wallpaper);
+        wallpaperCredit = findViewById(R.id.wallpaperCredit);
+        wallpaperCredit.setTypeface(Fonts.outfit(this, 300));
+        settings = GlassPrefs.get(this);
         pillRow = findViewById(R.id.pills);
         pills = new View[] {findViewById(R.id.pillInputs), findViewById(R.id.pillWifi), findViewById(R.id.pillSettings)};
 
@@ -190,6 +202,7 @@ public class HomeActivity extends Activity {
         updateGreeting();
         updateWifi();
         loadWallpaper();
+        refreshBing(false);
         if (configStamp() != loadedConfigStamp) loadApps(); // dock.txt / hidden.txt edited
     }
 
@@ -394,11 +407,80 @@ public class HomeActivity extends Activity {
         if (zone == TOP) {
             if (topIdx == PILL_INPUTS) openMenu();
             else if (topIdx == PILL_WIFI) launch(new Intent(Settings.ACTION_WIFI_SETTINGS));
-            else openSettings();
+            else openSettingsMenu();
         } else {
             AppInfo app = focusedApp();
             if (app != null) launch(app.launchIntent);
         }
+    }
+
+    /** Settings pill: Fire TV's own settings, or Glass's. */
+    private void openSettingsMenu() {
+        List<MenuItem> items = new ArrayList<>();
+        items.add(new MenuItem(getString(R.string.settings_firetv), this::openSettings));
+        items.add(new MenuItem(getString(R.string.settings_glass), () -> openGlassSettings(-1)));
+        showMenu(items, pills[PILL_SETTINGS]);
+    }
+
+    private String onOff(boolean on) {
+        return getString(on ? R.string.set_on : R.string.set_off);
+    }
+
+    /** Glass settings. Toggles keep the menu open and rebuild it with the new values. */
+    private void openGlassSettings(int select) {
+        List<MenuItem> items = new ArrayList<>();
+        items.add(new MenuItem(getString(R.string.settings_glass), null));
+
+        boolean bing = settings.getBoolean(GlassPrefs.BING, false);
+        int iBing = items.size();
+        items.add(new MenuItem(getString(R.string.set_bing, onOff(bing)), () -> {
+            settings.edit().putBoolean(GlassPrefs.BING, !bing).apply();
+            wallpaperStamp = -1;
+            loadWallpaper();
+            if (!bing) refreshBing(true);
+            openGlassSettings(iBing);
+        }, true));
+
+        if (bing) {
+            int day = settings.getInt(GlassPrefs.BING_IDX, 0);
+            String when = day == 0 ? getString(R.string.bing_today)
+                    : getResources().getQuantityString(R.plurals.bing_days_ago, day, day);
+            int iDay = items.size();
+            items.add(new MenuItem(getString(R.string.set_bing_pick, when), () -> {
+                settings.edit().putInt(GlassPrefs.BING_IDX, (day + 1) % GlassPrefs.BING_DAYS).apply();
+                refreshBing(true);
+                openGlassSettings(iDay);
+            }, true));
+        }
+
+        int dim = clamp(settings.getInt(GlassPrefs.DIM, GlassPrefs.DIM_DEFAULT), 0, GlassPrefs.DIM_ALPHA.length - 1);
+        int[] dimNames = {R.string.dim_light, R.string.dim_medium, R.string.dim_strong};
+        int iDim = items.size();
+        items.add(new MenuItem(getString(R.string.set_dim, getString(dimNames[dim])), () -> {
+            settings.edit().putInt(GlassPrefs.DIM, (dim + 1) % GlassPrefs.DIM_ALPHA.length).apply();
+            applyWallpaperDim();
+            openGlassSettings(iDim);
+        }, true));
+
+        boolean back = settings.getBoolean(GlassPrefs.BACK_LONG_PRESS, true);
+        int iBack = items.size();
+        items.add(new MenuItem(getString(R.string.set_back_long_press, onOff(back)), () -> {
+            settings.edit().putBoolean(GlassPrefs.BACK_LONG_PRESS, !back).apply();
+            openGlassSettings(iBack);
+        }, true));
+
+        int hidden = AppLoader.readList(this, AppLoader.HIDDEN_FILE).size();
+        items.add(hidden > 0
+                ? new MenuItem(getString(R.string.menu_hidden_apps, hidden), this::showHiddenMenu)
+                : new MenuItem(getString(R.string.set_no_hidden), null));
+
+        String version = "?";
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
+        items.add(new MenuItem(getString(R.string.set_version, version), null));
+        showMenu(items, null, select);
     }
 
     /**
@@ -475,6 +557,7 @@ public class HomeActivity extends Activity {
             else grid.scrollBy(0, dy);
         }
 
+        wallpaperCredit.animate().alpha(zone == GRID ? 0f : 1f).setDuration(animate ? 200 : 0).start();
         updateDockTitle(animate);
         moveHighlight();
     }
@@ -571,6 +654,12 @@ public class HomeActivity extends Activity {
 
     /** Shows the menu under {@code anchor}, or centred on screen when it's null. */
     private void showMenu(List<MenuItem> items, View anchor) {
+        showMenu(items, anchor, -1);
+    }
+
+    /** {@code select}: row to focus (when selectable). An open menu is rebuilt without animation. */
+    private void showMenu(List<MenuItem> items, View anchor, int select) {
+        boolean refresh = menuOpen;
         menuItems = items;
         inputsMenu.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -584,10 +673,11 @@ public class HomeActivity extends Activity {
             else if (menuIdx < 0) menuIdx = i;
             inputsMenu.addView(row);
         }
+        if (select >= 0 && select < items.size() && items.get(select).action != null) menuIdx = select;
 
         // Fit on screen: long lists (hidden apps) scroll inside the panel
         menuPanel.animate().cancel();
-        menuPanel.scrollTo(0, 0);
+        if (!refresh) menuPanel.scrollTo(0, 0);
         ViewGroup.LayoutParams lp = menuPanel.getLayoutParams();
         lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
         lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -610,10 +700,15 @@ public class HomeActivity extends Activity {
             y = (root.getHeight() - h) / 2f;
         }
         menuPanel.setX(x);
-        menuPanel.setY(y - dp(8));
-        menuPanel.setAlpha(0f);
         menuPanel.setVisibility(View.VISIBLE);
-        menuPanel.animate().alpha(1f).y(y).setDuration(180).setInterpolator(ease).start();
+        if (refresh) {
+            menuPanel.setY(y);
+            menuPanel.setAlpha(1f);
+        } else {
+            menuPanel.setY(y - dp(8));
+            menuPanel.setAlpha(0f);
+            menuPanel.animate().alpha(1f).y(y).setDuration(180).setInterpolator(ease).start();
+        }
         menuOpen = true;
         updateMenuSelection();
     }
@@ -640,9 +735,9 @@ public class HomeActivity extends Activity {
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
             case KeyEvent.KEYCODE_BUTTON_A:
                 if (menuIdx >= 0) {
-                    Runnable action = menuItems.get(menuIdx).action;
-                    closeMenu();
-                    action.run(); // may open another menu (hidden apps)
+                    MenuItem item = menuItems.get(menuIdx);
+                    if (!item.keepOpen) closeMenu();
+                    item.action.run(); // may open another menu, or rebuild this one
                 }
                 break;
             default: // Back, Left, Right, Menu close it
@@ -776,7 +871,7 @@ public class HomeActivity extends Activity {
     // ---------------------------------------------------------------- clock, greeting, wifi, wallpaper
 
     private final BroadcastReceiver timeReceiver = new BroadcastReceiver() {
-        @Override public void onReceive(Context c, Intent i) { updateGreeting(); }
+        @Override public void onReceive(Context c, Intent i) { updateGreeting(); refreshBing(false); }
     };
 
     private void updateGreeting() {
@@ -815,14 +910,28 @@ public class HomeActivity extends Activity {
         if (!text.contentEquals(wifiName.getText())) wifiName.setText(text);
     }
 
-    /** Optional wallpaper: wallpaper.jpg or wallpaper.png in the app's files dir (see configure.sh). */
+    /**
+     * Wallpaper: Bing's image of the day when enabled in Glass settings, otherwise the optional
+     * wallpaper.jpg / wallpaper.png in the app's files dir (see configure.sh). Shown dimmed.
+     */
     private void loadWallpaper() {
         File file = null;
-        for (String name : new String[] {"wallpaper.jpg", "wallpaper.png"}) {
-            File f = new File(getFilesDir(), name);
-            if (f.isFile()) { file = f; break; }
+        boolean fromBing = false;
+        if (settings.getBoolean(GlassPrefs.BING, false)) {
+            File b = new File(getFilesDir(), BingWallpaper.FILE);
+            if (b.isFile()) { file = b; fromBing = true; }
         }
-        long stamp = file == null ? 0 : file.lastModified() + file.length();
+        for (String name : new String[] {"wallpaper.jpg", "wallpaper.png"}) {
+            if (file != null) break;
+            File f = new File(getFilesDir(), name);
+            if (f.isFile()) file = f;
+        }
+        String credit = fromBing ? settings.getString(GlassPrefs.BING_CREDIT, "") : "";
+        wallpaperCredit.setText(credit);
+        wallpaperCredit.setVisibility(credit.isEmpty() ? View.GONE : View.VISIBLE);
+        applyWallpaperDim();
+
+        long stamp = file == null ? 0 : file.getName().hashCode() * 31L + file.lastModified() + file.length();
         if (stamp == wallpaperStamp) return;
         wallpaperStamp = stamp;
         if (file == null) {
@@ -843,8 +952,35 @@ public class HomeActivity extends Activity {
             Bitmap bmp = BitmapFactory.decodeFile(path, o);
             main.post(() -> {
                 wallpaper.setImageBitmap(bmp);
-                wallpaper.setColorFilter(Color.argb(115, 0, 0, 0), PorterDuff.Mode.SRC_ATOP);
                 wallpaper.setVisibility(bmp == null ? View.GONE : View.VISIBLE);
+            });
+        });
+    }
+
+    private void applyWallpaperDim() {
+        int dim = clamp(settings.getInt(GlassPrefs.DIM, GlassPrefs.DIM_DEFAULT), 0, GlassPrefs.DIM_ALPHA.length - 1);
+        wallpaper.setColorFilter(Color.argb(GlassPrefs.DIM_ALPHA[dim], 0, 0, 0), PorterDuff.Mode.SRC_ATOP);
+    }
+
+    /**
+     * Downloads a new Bing image when the saved one is stale (new day, other day offset, missing).
+     * Without {@code force}, failed attempts are retried at most every 30 minutes.
+     */
+    private void refreshBing(boolean force) {
+        if (!settings.getBoolean(GlassPrefs.BING, false)) return;
+        long now = System.currentTimeMillis();
+        if (!force && (!BingWallpaper.isStale(this) || now - lastBingAttempt < 30 * 60_000L)) return;
+        lastBingAttempt = now;
+        Context app = getApplicationContext();
+        io.execute(() -> {
+            boolean ok = BingWallpaper.fetch(app);
+            main.post(() -> {
+                if (ok) {
+                    wallpaperStamp = -1;
+                    loadWallpaper();
+                } else if (force) {
+                    Toast.makeText(this, R.string.bing_failed, Toast.LENGTH_SHORT).show();
+                }
             });
         });
     }
