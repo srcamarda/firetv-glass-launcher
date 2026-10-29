@@ -19,6 +19,18 @@
 
     <string name="date_format">EEEE, d \'de\' MMMM</string>
 
+    <string name="menu_add_favorite">Adicionar aos favoritos</string>
+    <string name="menu_remove_favorite">Remover dos favoritos</string>
+    <string name="menu_favorites_full">Favoritos cheios (máx. %d)</string>
+    <string name="menu_move_left">Mover para a esquerda</string>
+    <string name="menu_move_right">Mover para a direita</string>
+    <string name="menu_hide">Ocultar app</string>
+    <string name="menu_app_info">Informações do app</string>
+    <string name="menu_hidden_apps">Apps ocultos (%d)</string>
+    <string name="hidden_header">Selecione um app para mostrá-lo de novo</string>
+    <string name="menu_show_all">Mostrar todos</string>
+    <string name="toast_hidden">%s foi ocultado. Para desfazer: Menu (☰) › Apps ocultos</string>
+
     <string name="a11y_label">Botão Home do Glass</string>
     <string name="a11y_description">Abre o Glass quando a tela inicial da Amazon aparece (cobrindo-a até o Glass ficar pronto) e quando você segura Voltar em qualquer app.</string>
 </resources>

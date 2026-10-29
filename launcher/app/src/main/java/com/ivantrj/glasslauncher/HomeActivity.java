@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -26,10 +27,12 @@ import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextClock;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -59,6 +62,7 @@ public class HomeActivity extends Activity {
     private static final int NEUTRAL_GLOW = 0xFF8E8E9E;
 
     private View root, page, band, glow, pillRow;
+    private ScrollView menuPanel;
     private View[] pills;
     private GlassHighlight highlight;
     private TextView greeting, dockTitle, wifiName;
@@ -79,9 +83,16 @@ public class HomeActivity extends Activity {
     private int glowColor = NEUTRAL_GLOW;
     private ValueAnimator glowAnimator;
 
+    /** A row in the pop-up menu. A null action makes it a non-selectable header / info row. */
+    private static final class MenuItem {
+        final String label;
+        final Runnable action;
+        MenuItem(String label, Runnable action) { this.label = label; this.action = action; }
+    }
+
     private boolean menuOpen;
     private int menuIdx;
-    private List<InputsMenu.Entry> menuEntries = new ArrayList<>();
+    private List<MenuItem> menuItems = new ArrayList<>();
 
     private boolean stopped = true;
     private long wallpaperStamp = -1;
@@ -116,6 +127,7 @@ public class HomeActivity extends Activity {
         dockRow = findViewById(R.id.dockRow);
         grid = findViewById(R.id.grid);
         inputsMenu = findViewById(R.id.inputsMenu);
+        menuPanel = findViewById(R.id.menuPanel);
         wallpaper = findViewById(R.id.wallpaper);
         pillRow = findViewById(R.id.pills);
         pills = new View[] {findViewById(R.id.pillInputs), findViewById(R.id.pillWifi), findViewById(R.id.pillSettings)};
@@ -295,7 +307,7 @@ public class HomeActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_UP: up(); break;
             case KeyEvent.KEYCODE_DPAD_DOWN: down(); break;
             case KeyEvent.KEYCODE_BACK: back(); break;
-            case KeyEvent.KEYCODE_MENU: openAppInfo(); break;
+            case KeyEvent.KEYCODE_MENU: openOptions(); break;
             default: if (event.getRepeatCount() == 0) activate(); break;
         }
         return true;
@@ -474,8 +486,8 @@ public class HomeActivity extends Activity {
     }
 
     private void updateDockTitle(boolean animate) {
-        // Full in the dock, dimmed under the top bar, gone once the page slides up
-        float alpha = zone == DOCK ? 1f : zone == TOP ? 0.4f : 0f;
+        // Only while a favourite is focused
+        float alpha = zone == DOCK ? 1f : 0f;
         glow.animate().alpha(zone == DOCK ? 1f : 0.5f).setDuration(animate ? 300 : 0).start();
         if (dockApps.isEmpty()) {
             dockTitle.setText("");
@@ -520,52 +532,81 @@ public class HomeActivity extends Activity {
         glowDrawable.setColors(new int[] {Color.argb(120, r, g, b), Color.argb(46, r, g, b), Color.argb(0, r, g, b)});
     }
 
-    // ---------------------------------------------------------------- inputs menu
+    // ---------------------------------------------------------------- pop-up menu
 
     private void openMenu() {
-        menuEntries = InputsMenu.load(this);
+        List<MenuItem> items = new ArrayList<>();
+        for (InputsMenu.Entry e : InputsMenu.load(this)) {
+            Intent intent = e.intent;
+            items.add(new MenuItem(e.label, intent == null ? null : () -> launch(intent)));
+        }
+        showMenu(items, pills[PILL_INPUTS]);
+    }
+
+    /** Shows the menu under {@code anchor}, or centred on screen when it's null. */
+    private void showMenu(List<MenuItem> items, View anchor) {
+        menuItems = items;
         inputsMenu.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(this);
         menuIdx = -1;
-        for (int i = 0; i < menuEntries.size(); i++) {
-            InputsMenu.Entry entry = menuEntries.get(i);
+        for (int i = 0; i < items.size(); i++) {
+            MenuItem item = items.get(i);
             TextView row = (TextView) inflater.inflate(R.layout.item_input, inputsMenu, false);
-            row.setText(entry.label);
-            row.setTypeface(Fonts.outfit(this, 400));
-            if (entry.intent == null) row.setAlpha(0.55f);
+            row.setText(item.label);
+            row.setTypeface(Fonts.outfit(this, item.action == null ? 300 : 400));
+            if (item.action == null) row.setAlpha(0.55f);
             else if (menuIdx < 0) menuIdx = i;
             inputsMenu.addView(row);
         }
-        updateMenuSelection();
 
-        inputsMenu.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        View pill = pills[PILL_INPUTS];
-        float x = pillRow.getLeft() + pill.getLeft();
-        x = Math.min(x, root.getWidth() - inputsMenu.getMeasuredWidth() - dp(24));
-        float y = pillRow.getTop() + pill.getBottom() + dp(12);
-        inputsMenu.setX(x);
-        inputsMenu.setY(y - dp(8));
-        inputsMenu.setAlpha(0f);
-        inputsMenu.setVisibility(View.VISIBLE);
-        inputsMenu.animate().alpha(1f).y(y).setDuration(180).setInterpolator(ease).start();
+        // Fit on screen: long lists (hidden apps) scroll inside the panel
+        menuPanel.animate().cancel();
+        menuPanel.scrollTo(0, 0);
+        ViewGroup.LayoutParams lp = menuPanel.getLayoutParams();
+        lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        menuPanel.setLayoutParams(lp);
+        menuPanel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int w = menuPanel.getMeasuredWidth();
+        int maxH = Math.round(root.getHeight() - dp(anchor == null ? 60 : 120));
+        int h = Math.min(menuPanel.getMeasuredHeight(), maxH);
+        if (h < menuPanel.getMeasuredHeight()) {
+            lp.height = h;
+            menuPanel.setLayoutParams(lp);
+        }
+
+        float x, y;
+        if (anchor != null) {
+            x = Math.min(pillRow.getLeft() + anchor.getLeft(), root.getWidth() - w - dp(24));
+            y = pillRow.getTop() + anchor.getBottom() + dp(12);
+        } else {
+            x = (root.getWidth() - w) / 2f;
+            y = (root.getHeight() - h) / 2f;
+        }
+        menuPanel.setX(x);
+        menuPanel.setY(y - dp(8));
+        menuPanel.setAlpha(0f);
+        menuPanel.setVisibility(View.VISIBLE);
+        menuPanel.animate().alpha(1f).y(y).setDuration(180).setInterpolator(ease).start();
         menuOpen = true;
+        updateMenuSelection();
     }
 
     private void closeMenu() {
         if (!menuOpen) return;
         menuOpen = false;
-        inputsMenu.animate().alpha(0f).setDuration(120)
-                .withEndAction(() -> inputsMenu.setVisibility(View.GONE)).start();
+        menuPanel.animate().alpha(0f).setDuration(120)
+                .withEndAction(() -> menuPanel.setVisibility(View.GONE)).start();
     }
 
     private void menuKey(int key) {
         switch (key) {
             case KeyEvent.KEYCODE_DPAD_UP:
-                for (int i = menuIdx - 1; i >= 0; i--) if (menuEntries.get(i).intent != null) { menuIdx = i; break; }
+                for (int i = menuIdx - 1; i >= 0; i--) if (menuItems.get(i).action != null) { menuIdx = i; break; }
                 updateMenuSelection();
                 break;
             case KeyEvent.KEYCODE_DPAD_DOWN:
-                for (int i = menuIdx + 1; i < menuEntries.size(); i++) if (menuEntries.get(i).intent != null) { menuIdx = i; break; }
+                for (int i = menuIdx + 1; i < menuItems.size(); i++) if (menuItems.get(i).action != null) { menuIdx = i; break; }
                 updateMenuSelection();
                 break;
             case KeyEvent.KEYCODE_DPAD_CENTER:
@@ -573,8 +614,9 @@ public class HomeActivity extends Activity {
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
             case KeyEvent.KEYCODE_BUTTON_A:
                 if (menuIdx >= 0) {
+                    Runnable action = menuItems.get(menuIdx).action;
                     closeMenu();
-                    launch(menuEntries.get(menuIdx).intent);
+                    action.run(); // may open another menu (hidden apps)
                 }
                 break;
             default: // Back, Left, Right, Menu close it
@@ -586,6 +628,123 @@ public class HomeActivity extends Activity {
         for (int i = 0; i < inputsMenu.getChildCount(); i++) {
             inputsMenu.getChildAt(i).setBackgroundResource(i == menuIdx ? R.drawable.menu_row_selected : 0);
         }
+        if (menuIdx < 0) return;
+        menuPanel.post(() -> { // keep the selected row inside the visible part of the panel
+            if (menuIdx < 0 || menuIdx >= inputsMenu.getChildCount()) return;
+            View row = inputsMenu.getChildAt(menuIdx);
+            int top = inputsMenu.getTop() + row.getTop(), bottom = inputsMenu.getTop() + row.getBottom();
+            int y = menuPanel.getScrollY();
+            int visTop = y + menuPanel.getPaddingTop();
+            int visBottom = y + menuPanel.getHeight() - menuPanel.getPaddingBottom();
+            if (top < visTop) menuPanel.smoothScrollTo(0, top - menuPanel.getPaddingTop());
+            else if (bottom > visBottom) menuPanel.smoothScrollTo(0, bottom - menuPanel.getHeight() + menuPanel.getPaddingBottom());
+        });
+    }
+
+    // ---------------------------------------------------------------- app options (Menu button)
+
+    /** Menu (☰): favourites, hide, app info for the focused app; hidden apps from anywhere. */
+    private void openOptions() {
+        AppInfo app = focusedApp();
+        List<String> hidden = AppLoader.readList(this, AppLoader.HIDDEN_FILE);
+        List<MenuItem> items = new ArrayList<>();
+        if (app != null) {
+            items.add(new MenuItem(app.label, null));
+            if (zone == DOCK) {
+                int i = dockIdx;
+                items.add(new MenuItem(getString(R.string.menu_remove_favorite), () -> removeFavorite(app)));
+                if (i > 0) items.add(new MenuItem(getString(R.string.menu_move_left), () -> moveFavorite(i, -1)));
+                if (i < dockApps.size() - 1) items.add(new MenuItem(getString(R.string.menu_move_right), () -> moveFavorite(i, 1)));
+            } else if (dockApps.size() < AppLoader.DOCK_MAX) {
+                items.add(new MenuItem(getString(R.string.menu_add_favorite), () -> addFavorite(app)));
+            } else {
+                items.add(new MenuItem(getString(R.string.menu_favorites_full, AppLoader.DOCK_MAX), null));
+            }
+            items.add(new MenuItem(getString(R.string.menu_hide), () -> hideApp(app)));
+            items.add(new MenuItem(getString(R.string.menu_app_info), this::openAppInfo));
+        }
+        if (!hidden.isEmpty()) {
+            items.add(new MenuItem(getString(R.string.menu_hidden_apps, hidden.size()), this::showHiddenMenu));
+        }
+        if (!items.isEmpty()) showMenu(items, null);
+    }
+
+    private List<String> dockPackages() {
+        List<String> pkgs = new ArrayList<>();
+        for (AppInfo a : dockApps) pkgs.add(a.packageName);
+        return pkgs;
+    }
+
+    private void addFavorite(AppInfo app) {
+        List<String> pkgs = dockPackages();
+        if (pkgs.contains(app.packageName) || pkgs.size() >= AppLoader.DOCK_MAX) return;
+        pkgs.add(app.packageName);
+        AppLoader.writeList(this, AppLoader.DOCK_FILE, pkgs);
+        loadApps();
+    }
+
+    private void removeFavorite(AppInfo app) {
+        List<String> pkgs = dockPackages();
+        pkgs.remove(app.packageName);
+        AppLoader.writeList(this, AppLoader.DOCK_FILE, pkgs);
+        loadApps();
+    }
+
+    private void moveFavorite(int from, int delta) {
+        List<String> pkgs = dockPackages();
+        int to = from + delta;
+        if (from < 0 || to < 0 || from >= pkgs.size() || to >= pkgs.size()) return;
+        pkgs.add(to, pkgs.remove(from));
+        dockIdx = to; // focus follows the moved app
+        AppLoader.writeList(this, AppLoader.DOCK_FILE, pkgs);
+        loadApps();
+    }
+
+    private void hideApp(AppInfo app) {
+        List<String> hidden = AppLoader.readList(this, AppLoader.HIDDEN_FILE);
+        if (!hidden.contains(app.packageName)) hidden.add(app.packageName);
+        AppLoader.writeList(this, AppLoader.HIDDEN_FILE, hidden);
+        List<String> dock = dockPackages();
+        if (dock.remove(app.packageName)) AppLoader.writeList(this, AppLoader.DOCK_FILE, dock);
+        loadApps();
+        Toast.makeText(this, getString(R.string.toast_hidden, app.label), Toast.LENGTH_LONG).show();
+    }
+
+    private void showHiddenMenu() {
+        List<String> hidden = AppLoader.readList(this, AppLoader.HIDDEN_FILE);
+        PackageManager pm = getPackageManager();
+        List<MenuItem> items = new ArrayList<>();
+        items.add(new MenuItem(getString(R.string.hidden_header), null));
+        List<String> uninstalled = new ArrayList<>();
+        for (String pkg : hidden) {
+            String label;
+            try {
+                label = String.valueOf(pm.getApplicationInfo(pkg, 0).loadLabel(pm));
+            } catch (PackageManager.NameNotFoundException e) {
+                uninstalled.add(pkg);
+                continue;
+            }
+            items.add(new MenuItem(label, () -> unhide(pkg)));
+        }
+        if (!uninstalled.isEmpty()) { // forget apps that were uninstalled meanwhile
+            hidden.removeAll(uninstalled);
+            AppLoader.writeList(this, AppLoader.HIDDEN_FILE, hidden);
+        }
+        if (hidden.isEmpty()) return;
+        if (hidden.size() > 1) {
+            items.add(new MenuItem(getString(R.string.menu_show_all), () -> {
+                AppLoader.writeList(this, AppLoader.HIDDEN_FILE, new ArrayList<>());
+                loadApps();
+            }));
+        }
+        showMenu(items, null);
+    }
+
+    private void unhide(String pkg) {
+        List<String> hidden = AppLoader.readList(this, AppLoader.HIDDEN_FILE);
+        hidden.remove(pkg);
+        AppLoader.writeList(this, AppLoader.HIDDEN_FILE, hidden);
+        loadApps();
     }
 
     // ---------------------------------------------------------------- clock, greeting, wifi, wallpaper

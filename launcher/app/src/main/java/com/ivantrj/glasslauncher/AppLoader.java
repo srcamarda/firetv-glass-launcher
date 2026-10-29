@@ -14,6 +14,7 @@ import android.graphics.drawable.Drawable;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,6 +24,9 @@ import java.util.Map;
 
 /** Finds launchable apps and splits them into the dock and the grid. Runs off the main thread. */
 final class AppLoader {
+
+    static final int DOCK_MAX = 4;
+    static final String DOCK_FILE = "dock.txt", HIDDEN_FILE = "hidden.txt";
 
     static final class Result {
         final List<AppInfo> dock = new ArrayList<>();
@@ -37,7 +41,7 @@ final class AppLoader {
         collect(pm, Intent.CATEGORY_LAUNCHER, activities);
         activities.remove(context.getPackageName());
         for (String pkg : context.getResources().getStringArray(R.array.hidden_packages)) activities.remove(pkg);
-        for (String pkg : readList(context, "hidden.txt")) activities.remove(pkg);
+        for (String pkg : readList(context, HIDDEN_FILE)) activities.remove(pkg);
 
         Map<String, AppInfo> apps = new LinkedHashMap<>();
         for (ActivityInfo ai : activities.values()) {
@@ -46,11 +50,13 @@ final class AppLoader {
         }
 
         Result result = new Result();
-        List<String> dock = readList(context, "dock.txt");
-        if (dock.isEmpty()) dock = Arrays.asList(context.getResources().getStringArray(R.array.dock_packages));
+        // dock.txt (written by the options menu or configure.sh) wins, even when empty
+        List<String> dock = new File(context.getFilesDir(), DOCK_FILE).isFile()
+                ? readList(context, DOCK_FILE)
+                : Arrays.asList(context.getResources().getStringArray(R.array.dock_packages));
         for (String pkg : dock) {
             AppInfo app = apps.remove(pkg);
-            if (app != null && result.dock.size() < 4) result.dock.add(app);
+            if (app != null && result.dock.size() < DOCK_MAX) result.dock.add(app);
         }
         result.grid.addAll(apps.values());
         Collator collator = Collator.getInstance();
@@ -76,6 +82,15 @@ final class AppLoader {
         } catch (Exception ignored) {
         }
         return pkgs;
+    }
+
+    /** Replaces a list file in the app's files dir (an empty list still writes the file). */
+    static void writeList(Context context, String fileName, List<String> pkgs) {
+        File file = new File(context.getFilesDir(), fileName);
+        try (FileWriter w = new FileWriter(file)) {
+            for (String pkg : pkgs) w.write(pkg + "\n");
+        } catch (Exception ignored) {
+        }
     }
 
     private static void collect(PackageManager pm, String category, Map<String, ActivityInfo> out) {

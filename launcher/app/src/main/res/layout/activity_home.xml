@@ -141,13 +141,24 @@
         </LinearLayout>
     </FrameLayout>
 
-    <LinearLayout
-        android:id="@+id/inputsMenu"
+    <!-- Pop-up menu: Inputs (under its pill) and the app options (centred, Menu button) -->
+    <ScrollView
+        android:id="@+id/menuPanel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/menu_bg"
-        android:minWidth="220dp"
-        android:orientation="vertical"
+        android:descendantFocusability="blocksDescendants"
+        android:focusable="false"
+        android:overScrollMode="never"
         android:padding="8dp"
-        android:visibility="gone" />
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/inputsMenu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="260dp"
+            android:orientation="vertical" />
+    </ScrollView>
 </FrameLayout>
