@@ -8,8 +8,8 @@ android {
 
     defaultConfig {
         applicationId 'com.ivantrj.glasslauncher'
-        minSdk 30          // Fire OS 8 on this stick is Android 11 / API 30
-        targetSdk 30
+        minSdk 28          // Fire OS 7 (Android 9 / API 28)
+        targetSdk 28
         versionCode 1
         versionName '1.0'
     }
