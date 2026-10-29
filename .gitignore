@@ -22,3 +22,11 @@ backup/
 shots/
 debloat/disable-log.txt
 debloat/disabled-now.txt
+
+# Windows scripts (windows/): local state and the downloaded adb
+windows/.tv-ip
+windows/.home-launcher
+windows/backup/
+windows/platform-tools/
+windows/disabled-by-script.txt
+windows/disable-list.txt

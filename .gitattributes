@@ -1,0 +1,2 @@
+# Keep the PowerShell scripts byte-for-byte (UTF-8 BOM + CRLF for Windows PowerShell 5.1)
+windows/*.ps1 -text
