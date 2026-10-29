@@ -57,7 +57,6 @@ import java.util.concurrent.Executors;
 public class HomeActivity extends Activity {
 
     private static final int TOP = 0, DOCK = 1, GRID = 2;
-    private static final int COLUMNS = 4;
     private static final int PILL_INPUTS = 0, PILL_WIFI = 1, PILL_SETTINGS = 2;
     private static final int NEUTRAL_GLOW = 0xFF8E8E9E;
 
@@ -69,7 +68,10 @@ public class HomeActivity extends Activity {
     private LinearLayout dockRow, inputsMenu;
     private RecyclerView grid;
     private ImageView wallpaper;
-    private TextView wallpaperCredit;
+    private int columns = 4;
+    private GridLayoutManager gridLayout;
+    private float gridCellW, gridCellH, gridTileW, gridTileH; // px, set by applyGridSettings()
+    private View dateView;
     private SharedPreferences settings;
     private long lastBingAttempt;
     private GridAdapter adapter;
@@ -138,15 +140,14 @@ public class HomeActivity extends Activity {
         inputsMenu = findViewById(R.id.inputsMenu);
         menuPanel = findViewById(R.id.menuPanel);
         wallpaper = findViewById(R.id.wallpaper);
-        wallpaperCredit = findViewById(R.id.wallpaperCredit);
-        wallpaperCredit.setTypeface(Fonts.outfit(this, 300));
         settings = GlassPrefs.get(this);
         pillRow = findViewById(R.id.pills);
         pills = new View[] {findViewById(R.id.pillInputs), findViewById(R.id.pillWifi), findViewById(R.id.pillSettings)};
 
         greeting.setTypeface(Fonts.outfit(this, 300));
         ((TextClock) findViewById(R.id.clock)).setTypeface(Fonts.outfit(this, 120));
-        ((TextClock) findViewById(R.id.date)).setTypeface(Fonts.outfit(this, 300));
+        dateView = findViewById(R.id.date);
+        ((TextClock) dateView).setTypeface(Fonts.outfit(this, 300));
         dockTitle.setTypeface(Fonts.outfit(this, 250));
         for (View pill : pills) ((TextView) ((LinearLayout) pill).getChildAt(1)).setTypeface(Fonts.outfit(this, 400));
 
@@ -161,10 +162,13 @@ public class HomeActivity extends Activity {
         pageSpring = new SpringValue(240f, 0.92f, v -> page.setTranslationY(-v));
 
         adapter = new GridAdapter(grid);
-        grid.setLayoutManager(new GridLayoutManager(this, COLUMNS));
+        gridLayout = new GridLayoutManager(this, columns);
+        grid.setLayoutManager(gridLayout);
         grid.setItemAnimator(null);
         grid.setHasFixedSize(true);
         grid.setAdapter(adapter);
+        applyGridSettings();
+        applyHeaderSettings();
         grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override public void onScrolled(RecyclerView rv, int dx, int dy) { gridScrollActual += dy; }
         });
@@ -354,7 +358,7 @@ public class HomeActivity extends Activity {
     private void left() {
         if (zone == TOP && topIdx > 0) topIdx--;
         else if (zone == DOCK && dockIdx > 0) dockIdx--;
-        else if (zone == GRID && gridIdx % COLUMNS > 0) gridIdx--;
+        else if (zone == GRID && gridIdx % columns > 0) gridIdx--;
         else return;
         applyFocus(true);
     }
@@ -362,7 +366,7 @@ public class HomeActivity extends Activity {
     private void right() {
         if (zone == TOP && topIdx < pills.length - 1) topIdx++;
         else if (zone == DOCK && dockIdx < dockApps.size() - 1) dockIdx++;
-        else if (zone == GRID && gridIdx % COLUMNS < COLUMNS - 1 && gridIdx + 1 < gridApps.size()) gridIdx++;
+        else if (zone == GRID && gridIdx % columns < columns - 1 && gridIdx + 1 < gridApps.size()) gridIdx++;
         else return;
         applyFocus(true);
     }
@@ -371,11 +375,11 @@ public class HomeActivity extends Activity {
         if (zone == TOP) return;
         if (zone == DOCK) {
             zone = TOP;
-        } else if (gridIdx >= COLUMNS) {
-            gridIdx -= COLUMNS;
+        } else if (gridIdx >= columns) {
+            gridIdx -= columns;
         } else if (!dockApps.isEmpty()) {
             zone = DOCK;
-            dockIdx = Math.min(gridIdx % COLUMNS, dockApps.size() - 1);
+            dockIdx = Math.min(gridIdx % columns, dockApps.size() - 1);
         } else {
             zone = TOP;
         }
@@ -388,9 +392,9 @@ public class HomeActivity extends Activity {
         } else if ((zone == TOP || zone == DOCK) && !gridApps.isEmpty()) {
             gridIdx = Math.min(zone == DOCK ? dockIdx : 0, gridApps.size() - 1);
             zone = GRID;
-        } else if (zone == GRID && gridIdx / COLUMNS < (gridApps.size() - 1) / COLUMNS) {
+        } else if (zone == GRID && gridIdx / columns < (gridApps.size() - 1) / columns) {
             // One row down; a short last row catches the focus on its last tile
-            gridIdx = Math.min(gridIdx + COLUMNS, gridApps.size() - 1);
+            gridIdx = Math.min(gridIdx + columns, gridApps.size() - 1);
         } else {
             return;
         }
@@ -462,6 +466,31 @@ public class HomeActivity extends Activity {
             openGlassSettings(iDim);
         }, true));
 
+        int iCols = items.size();
+        items.add(new MenuItem(getString(R.string.set_columns, columns), () -> {
+            int next = columns >= GlassPrefs.GRID_COLS_MAX ? GlassPrefs.GRID_COLS_MIN : columns + 1;
+            settings.edit().putInt(GlassPrefs.GRID_COLS, next).apply();
+            applyGridSettings();
+            openGlassSettings(iCols);
+        }, true));
+
+        boolean labels = settings.getBoolean(GlassPrefs.GRID_LABELS_ALWAYS, false);
+        int iLabels = items.size();
+        items.add(new MenuItem(getString(R.string.set_grid_labels,
+                getString(labels ? R.string.labels_always : R.string.labels_focused)), () -> {
+            settings.edit().putBoolean(GlassPrefs.GRID_LABELS_ALWAYS, !labels).apply();
+            applyGridSettings();
+            openGlassSettings(iLabels);
+        }, true));
+
+        boolean greet = settings.getBoolean(GlassPrefs.SHOW_GREETING, true);
+        int iGreet = items.size();
+        items.add(new MenuItem(getString(R.string.set_greeting, onOff(greet)), () -> {
+            settings.edit().putBoolean(GlassPrefs.SHOW_GREETING, !greet).apply();
+            applyHeaderSettings();
+            openGlassSettings(iGreet);
+        }, true));
+
         boolean back = settings.getBoolean(GlassPrefs.BACK_LONG_PRESS, true);
         int iBack = items.size();
         items.add(new MenuItem(getString(R.string.set_back_long_press, onOff(back)), () -> {
@@ -474,6 +503,8 @@ public class HomeActivity extends Activity {
                 ? new MenuItem(getString(R.string.menu_hidden_apps, hidden), this::showHiddenMenu)
                 : new MenuItem(getString(R.string.set_no_hidden), null));
 
+        items.add(new MenuItem(getString(R.string.set_reset), this::confirmReset));
+
         String version = "?";
         try {
             version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
@@ -481,6 +512,59 @@ public class HomeActivity extends Activity {
         }
         items.add(new MenuItem(getString(R.string.set_version, version), null));
         showMenu(items, null, select);
+    }
+
+    /** Grid columns and label mode. At 5 columns the tiles shrink to fit the same 816dp width. */
+    private void applyGridSettings() {
+        columns = clamp(settings.getInt(GlassPrefs.GRID_COLS, GlassPrefs.GRID_COLS_MIN),
+                GlassPrefs.GRID_COLS_MIN, GlassPrefs.GRID_COLS_MAX);
+        int cellW = (int) Math.floor(dp(816) / columns);
+        int tileW = cellW - Math.round(dp(24));
+        int tileH = Math.round(tileW * 101f / 180f);   // 16:9 like the XML tile (180x101dp)
+        int cellH = tileH + Math.round(dp(43));        // the XML cell is 144dp for a 101dp tile
+        int iconSize = Math.round(dp(54) * tileW / dp(180));
+        int labelTop = Math.round(dp(10)) + tileH + Math.round(dp(13));
+        gridCellW = dp(816) / columns; // exact span width, matches GridLayoutManager's placement
+        gridCellH = cellH;
+        gridTileW = tileW;
+        gridTileH = tileH;
+        gridLayout.setSpanCount(columns);
+        adapter.setLayout(cellW, cellH, tileW, tileH, iconSize, labelTop,
+                settings.getBoolean(GlassPrefs.GRID_LABELS_ALWAYS, false));
+        // Start the grid from the top with the new geometry
+        grid.scrollToPosition(0);
+        gridScrollActual = 0;
+        gridScrollTarget = 0;
+        gridIdx = clamp(gridIdx, 0, gridApps.size() - 1);
+        if (zone == GRID) afterLayout(() -> applyFocus(false));
+    }
+
+    /** Greeting and date above the clock (invisible rather than gone, so the clock stays put). */
+    private void applyHeaderSettings() {
+        int v = settings.getBoolean(GlassPrefs.SHOW_GREETING, true) ? View.VISIBLE : View.INVISIBLE;
+        greeting.setVisibility(v);
+        dateView.setVisibility(v);
+    }
+
+    private void confirmReset() {
+        List<MenuItem> items = new ArrayList<>();
+        items.add(new MenuItem(getString(R.string.reset_header), null));
+        items.add(new MenuItem(getString(R.string.reset_no), () -> openGlassSettings(-1)));
+        items.add(new MenuItem(getString(R.string.reset_yes), this::resetAll));
+        showMenu(items, null, 1); // Cancel focused first
+    }
+
+    /** Favourites, hidden apps and Glass settings back to defaults. */
+    private void resetAll() {
+        new File(getFilesDir(), AppLoader.DOCK_FILE).delete();
+        new File(getFilesDir(), AppLoader.HIDDEN_FILE).delete();
+        settings.edit().clear().commit();
+        applyGridSettings();
+        applyHeaderSettings();
+        wallpaperStamp = -1;
+        loadWallpaper();
+        loadApps();
+        Toast.makeText(this, R.string.reset_done, Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -541,7 +625,7 @@ public class HomeActivity extends Activity {
         float pageTarget = 0;
         int scrollTarget = 0;
         if (zone == GRID) {
-            int row = gridIdx / COLUMNS;
+            int row = gridIdx / columns;
             if (row == 0) {
                 pageTarget = band.getTop() - dp(30);
             } else {
@@ -557,7 +641,6 @@ public class HomeActivity extends Activity {
             else grid.scrollBy(0, dy);
         }
 
-        wallpaperCredit.animate().alpha(zone == GRID ? 0f : 1f).setDuration(animate ? 200 : 0).start();
         updateDockTitle(animate);
         moveHighlight();
     }
@@ -574,7 +657,7 @@ public class HomeActivity extends Activity {
             highlight.moveTo(l, t, w, h, h / 2f);
             return;
         }
-        float tileW = dp(180), tileH = dp(101);
+        float tileW = dp(180), tileH = dp(101); // dock tiles keep the XML size
         if (zone == DOCK) {
             if (dockIdx >= dockRow.getChildCount()) return;
             View cell = dockRow.getChildAt(dockIdx);
@@ -584,8 +667,10 @@ public class HomeActivity extends Activity {
         } else {
             // Computed from the grid geometry and the scroll target, so the highlight
             // heads straight for the final spot while the grid is still scrolling
-            int col = gridIdx % COLUMNS, row = gridIdx / COLUMNS;
-            l = grid.getLeft() + grid.getPaddingLeft() + col * dp(204) + dp(12);
+            int col = gridIdx % columns, row = gridIdx / columns;
+            tileW = gridTileW;
+            tileH = gridTileH;
+            l = grid.getLeft() + grid.getPaddingLeft() + col * gridCellW + dp(12);
             t = grid.getTop() + grid.getPaddingTop() + row * rowHeight() - gridScrollTarget + dp(10);
         }
         float s = Tiles.FOCUS_SCALE, pad = dp(6);
@@ -764,10 +849,9 @@ public class HomeActivity extends Activity {
 
     // ---------------------------------------------------------------- app options (Menu button)
 
-    /** Menu (☰): favourites, hide, app info for the focused app; hidden apps from anywhere. */
+    /** Menu (☰): favourites, hide and app info for the focused app. Hidden apps live in Glass settings. */
     private void openOptions() {
         AppInfo app = focusedApp();
-        List<String> hidden = AppLoader.readList(this, AppLoader.HIDDEN_FILE);
         List<MenuItem> items = new ArrayList<>();
         if (app != null) {
             items.add(new MenuItem(app.label, null));
@@ -783,9 +867,6 @@ public class HomeActivity extends Activity {
             }
             items.add(new MenuItem(getString(R.string.menu_hide), () -> hideApp(app)));
             items.add(new MenuItem(getString(R.string.menu_app_info), this::openAppInfo));
-        }
-        if (!hidden.isEmpty()) {
-            items.add(new MenuItem(getString(R.string.menu_hidden_apps, hidden.size()), this::showHiddenMenu));
         }
         if (!items.isEmpty()) showMenu(items, null);
     }
@@ -916,19 +997,15 @@ public class HomeActivity extends Activity {
      */
     private void loadWallpaper() {
         File file = null;
-        boolean fromBing = false;
         if (settings.getBoolean(GlassPrefs.BING, false)) {
             File b = new File(getFilesDir(), BingWallpaper.FILE);
-            if (b.isFile()) { file = b; fromBing = true; }
+            if (b.isFile()) file = b;
         }
         for (String name : new String[] {"wallpaper.jpg", "wallpaper.png"}) {
             if (file != null) break;
             File f = new File(getFilesDir(), name);
             if (f.isFile()) file = f;
         }
-        String credit = fromBing ? settings.getString(GlassPrefs.BING_CREDIT, "") : "";
-        wallpaperCredit.setText(credit);
-        wallpaperCredit.setVisibility(credit.isEmpty() ? View.GONE : View.VISIBLE);
         applyWallpaperDim();
 
         long stamp = file == null ? 0 : file.getName().hashCode() * 31L + file.lastModified() + file.length();
@@ -1007,10 +1084,10 @@ public class HomeActivity extends Activity {
         root.requestLayout();
     }
 
-    private int rowHeight() { return Math.round(dp(144)); }
+    private int rowHeight() { return Math.round(gridCellH); }
 
     private int maxGridScroll() {
-        int rows = (gridApps.size() + COLUMNS - 1) / COLUMNS;
+        int rows = (gridApps.size() + columns - 1) / columns;
         return Math.max(0, rows * rowHeight() + grid.getPaddingBottom() - grid.getHeight());
     }
 

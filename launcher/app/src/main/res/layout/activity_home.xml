@@ -144,21 +144,6 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Photo credit for the Bing wallpaper -->
-    <TextView
-        android:id="@+id/wallpaperCredit"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="28dp"
-        android:layout_marginBottom="18dp"
-        android:ellipsize="end"
-        android:maxWidth="420dp"
-        android:singleLine="true"
-        android:textColor="#8CFFFFFF"
-        android:textSize="11sp"
-        android:visibility="gone" />
-
     <!-- Pop-up menu: Inputs (under its pill) and the app options (centred, Menu button) -->
     <ScrollView
         android:id="@+id/menuPanel"

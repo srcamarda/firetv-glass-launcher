@@ -29,7 +29,7 @@
     <string name="menu_hidden_apps">Apps ocultos (%d)</string>
     <string name="hidden_header">Selecione um app para mostrá-lo de novo</string>
     <string name="menu_show_all">Mostrar todos</string>
-    <string name="toast_hidden">%s foi ocultado. Para desfazer: Menu (☰) › Apps ocultos</string>
+    <string name="toast_hidden">%s foi ocultado. Para mostrar de novo: Configurações › Configurações do Glass › Apps ocultos</string>
 
     <string name="settings_firetv">Configurações do Fire TV</string>
     <string name="settings_glass">Configurações do Glass</string>
@@ -50,6 +50,17 @@
     <string name="set_no_hidden">Nenhum app oculto</string>
     <string name="set_version">Versão %s</string>
     <string name="bing_failed">Não foi possível baixar a imagem do Bing</string>
+
+    <string name="set_columns">Colunas da grade: %d</string>
+    <string name="set_grid_labels">Nome dos apps na grade: %s</string>
+    <string name="labels_always">Sempre</string>
+    <string name="labels_focused">Só no selecionado</string>
+    <string name="set_greeting">Saudação e data: %s</string>
+    <string name="set_reset">Restaurar padrão…</string>
+    <string name="reset_header">Restaurar favoritos, ocultos e ajustes?</string>
+    <string name="reset_no">Cancelar</string>
+    <string name="reset_yes">Sim, restaurar padrão</string>
+    <string name="reset_done">Padrão restaurado</string>
 
     <string name="a11y_label">Botão Home do Glass</string>
     <string name="a11y_description">Abre o Glass quando a tela inicial da Amazon aparece (cobrindo-a até o Glass ficar pronto) e quando você segura Voltar em qualquer app.</string>
