@@ -11,8 +11,11 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -149,7 +152,10 @@ public class HomeActivity extends Activity {
         dateView = findViewById(R.id.date);
         ((TextClock) dateView).setTypeface(Fonts.outfit(this, 300));
         dockTitle.setTypeface(Fonts.outfit(this, 250));
-        for (View pill : pills) ((TextView) ((LinearLayout) pill).getChildAt(1)).setTypeface(Fonts.outfit(this, 400));
+        for (View pill : pills) {
+            sharpenIcon((ImageView) ((LinearLayout) pill).getChildAt(0));
+            ((TextView) ((LinearLayout) pill).getChildAt(1)).setTypeface(Fonts.outfit(this, 400));
+        }
 
         glowDrawable = new GradientDrawable();
         glowDrawable.setGradientType(GradientDrawable.RADIAL_GRADIENT);
@@ -1072,6 +1078,24 @@ public class HomeActivity extends Activity {
             if (f.isFile()) stamp = stamp * 31 + f.lastModified() + f.length();
         }
         return stamp;
+    }
+
+    /**
+     * Vector icons are rasterised once at their view size; the pills' 1.06 focus zoom then
+     * upscales that small bitmap and blurs it. Pre-rendering at 2x means the zoom only ever
+     * downsamples, so the icon stays sharp at both sizes.
+     */
+    private void sharpenIcon(ImageView v) {
+        Drawable d = v.getDrawable();
+        if (d == null || d.getIntrinsicWidth() <= 0 || d.getIntrinsicHeight() <= 0) return;
+        int w = d.getIntrinsicWidth() * 2, h = d.getIntrinsicHeight() * 2;
+        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        d.setBounds(0, 0, w, h);
+        d.draw(new Canvas(b));
+        BitmapDrawable sharp = new BitmapDrawable(getResources(), b);
+        sharp.setFilterBitmap(true);
+        v.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        v.setImageDrawable(sharp);
     }
 
     private void afterLayout(Runnable r) {
