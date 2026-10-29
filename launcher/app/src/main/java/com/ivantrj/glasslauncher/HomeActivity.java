@@ -33,6 +33,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.animation.DecelerateInterpolator;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -292,6 +293,7 @@ public class HomeActivity extends Activity {
             View cell = inflater.inflate(R.layout.item_tile, dockRow, false);
             Tiles.bind(cell, app);
             cell.findViewById(R.id.label).setVisibility(View.GONE); // the big dock title already names it
+            ((FrameLayout) cell.findViewById(R.id.tile)).setForeground(getDrawable(R.drawable.tile_border));
             dockRow.addView(cell);
         }
         // Band hugs the favourites: one 204dp cell each plus 12dp on both sides; hidden when empty
