@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Português (usado em pt-BR e pt-PT) -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="inputs">Entradas</string>
+    <string name="settings">Configurações</string>
+    <string name="no_inputs">Nenhuma entrada externa neste aparelho</string>
+    <string name="live_tv">TV ao vivo</string>
+    <string name="cant_open">Não foi possível abrir</string>
+
+    <string name="greeting_morning">Bom dia</string>
+    <string name="greeting_afternoon">Boa tarde</string>
+    <string name="greeting_evening">Boa noite</string>
+    <string name="greeting_night">Boa noite</string>
+
+    <string name="net_offline">Sem conexão</string>
+    <string name="net_ethernet">Cabo de rede</string>
+    <string name="net_wifi">Wi-Fi</string>
+    <string name="net_connected">Conectado</string>
+
+    <string name="date_format">EEEE, d \'de\' MMMM</string>
+
+    <string name="a11y_label">Botão Home do Glass</string>
+    <string name="a11y_description">Abre o Glass quando a tela inicial da Amazon aparece (cobrindo-a até o Glass ficar pronto) e quando você segura Voltar em qualquer app.</string>
+</resources>

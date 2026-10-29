@@ -400,7 +400,7 @@ public class HomeActivity extends Activity {
         try {
             startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException | SecurityException e) {
-            Toast.makeText(this, "Can't open that here", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.cant_open, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -596,8 +596,9 @@ public class HomeActivity extends Activity {
 
     private void updateGreeting() {
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        String text = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon"
-                : hour < 22 ? "Good evening" : "Good night";
+        int text = hour < 5 ? R.string.greeting_night : hour < 12 ? R.string.greeting_morning
+                : hour < 18 ? R.string.greeting_afternoon : hour < 22 ? R.string.greeting_evening
+                : R.string.greeting_night;
         greeting.setText(text);
     }
 
@@ -612,19 +613,19 @@ public class HomeActivity extends Activity {
         NetworkCapabilities caps = network == null ? null : connectivity.getNetworkCapabilities(network);
         String text;
         if (caps == null) {
-            text = "Offline";
+            text = getString(R.string.net_offline);
         } else if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
-            text = "Ethernet";
+            text = getString(R.string.net_ethernet);
         } else if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
             WifiInfo info = wifiManager.getConnectionInfo();
             String ssid = info == null ? null : info.getSSID();
             if (ssid == null || ssid.equals(WifiManager.UNKNOWN_SSID) || ssid.isEmpty()) {
-                text = "Wi-Fi"; // name hidden: location permission or location mode is off
+                text = getString(R.string.net_wifi); // name hidden: location permission or location mode is off
             } else {
                 text = ssid.startsWith("\"") && ssid.endsWith("\"") ? ssid.substring(1, ssid.length() - 1) : ssid;
             }
         } else {
-            text = "Connected";
+            text = getString(R.string.net_connected);
         }
         if (!text.contentEquals(wifiName.getText())) wifiName.setText(text);
     }

@@ -74,8 +74,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:format12Hour="EEEE, d MMMM"
-                android:format24Hour="EEEE, d MMMM"
+                android:format12Hour="@string/date_format"
+                android:format24Hour="@string/date_format"
                 android:textColor="#99FFFFFF"
                 android:textSize="19sp" />
         </LinearLayout>
@@ -131,7 +131,7 @@
 
             <LinearLayout android:id="@+id/pillWifi" style="@style/Pill">
                 <ImageView style="@style/PillIcon" android:src="@drawable/ic_wifi" />
-                <TextView android:id="@+id/wifiName" style="@style/PillText" android:text="Wi-Fi" />
+                <TextView android:id="@+id/wifiName" style="@style/PillText" android:text="@string/net_wifi" />
             </LinearLayout>
 
             <LinearLayout android:id="@+id/pillSettings" style="@style/Pill">

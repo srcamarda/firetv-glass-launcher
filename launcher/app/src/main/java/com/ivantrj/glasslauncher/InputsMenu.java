@@ -49,7 +49,7 @@ final class InputsMenu {
         }
 
         Intent liveTv = context.getPackageManager().getLeanbackLaunchIntentForPackage("com.amazon.tv.livetv");
-        if (liveTv != null) out.add(new Entry("Live TV", liveTv.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
+        if (liveTv != null) out.add(new Entry(context.getString(R.string.live_tv), liveTv.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
 
         if (out.isEmpty()) out.add(new Entry(context.getString(R.string.no_inputs), null));
         return out;
