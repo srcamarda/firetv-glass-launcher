@@ -182,6 +182,13 @@ public class HomeActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        android.util.Log.i("GlassDiag", "Glass visible (onResume)");
+        HomeButtonService.onGlassVisible();
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
         stopped = true;
@@ -192,6 +199,7 @@ public class HomeActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        HomeButtonService.onGlassPaused();
         SharedPreferences.Editor e = prefs.edit()
                 .putInt("zone", zone)
                 .putInt("dockIdx", dockIdx)
