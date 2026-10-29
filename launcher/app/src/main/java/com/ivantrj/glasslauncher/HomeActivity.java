@@ -394,11 +394,30 @@ public class HomeActivity extends Activity {
         if (zone == TOP) {
             if (topIdx == PILL_INPUTS) openMenu();
             else if (topIdx == PILL_WIFI) launch(new Intent(Settings.ACTION_WIFI_SETTINGS));
-            else launch(new Intent(Settings.ACTION_SETTINGS));
+            else openSettings();
         } else {
             AppInfo app = focusedApp();
             if (app != null) launch(app.launchIntent);
         }
+    }
+
+    /**
+     * On Fire OS 7, ACTION_SETTINGS goes through a stub that reopens the Amazon home screen
+     * to show Settings there, which the Home redirect then sends back to Glass. The launcher's
+     * MainSettingsActivity opens the same Settings screen directly, so use it when present.
+     */
+    private void openSettings() {
+        Intent fireSettings = new Intent().setClassName("com.amazon.tv.launcher",
+                "com.amazon.tv.launcher.ui.MainSettingsActivity");
+        if (fireSettings.resolveActivity(getPackageManager()) != null) {
+            try {
+                startActivity(fireSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (RuntimeException ignored) {
+                // fall back to the standard intent
+            }
+        }
+        launch(new Intent(Settings.ACTION_SETTINGS));
     }
 
     /** Menu button on a tile opens that app's system info page (force stop, clear cache...). */
