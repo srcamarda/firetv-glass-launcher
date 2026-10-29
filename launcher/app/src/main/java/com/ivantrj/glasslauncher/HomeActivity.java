@@ -268,6 +268,7 @@ public class HomeActivity extends Activity {
         for (AppInfo app : dockApps) {
             View cell = inflater.inflate(R.layout.item_tile, dockRow, false);
             Tiles.bind(cell, app);
+            cell.findViewById(R.id.label).setVisibility(View.GONE); // the big dock title already names it
             dockRow.addView(cell);
         }
         gridApps = result.grid;
