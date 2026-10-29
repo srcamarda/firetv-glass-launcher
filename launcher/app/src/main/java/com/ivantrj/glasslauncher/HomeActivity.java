@@ -271,6 +271,12 @@ public class HomeActivity extends Activity {
             cell.findViewById(R.id.label).setVisibility(View.GONE); // the big dock title already names it
             dockRow.addView(cell);
         }
+        // Band hugs the favourites: one 204dp cell each plus 12dp on both sides; hidden when empty
+        ViewGroup.LayoutParams bandLp = band.getLayoutParams();
+        bandLp.width = Math.round(dp(dockApps.size() * 204 + 24));
+        band.setLayoutParams(bandLp);
+        band.setVisibility(dockApps.isEmpty() ? View.INVISIBLE : View.VISIBLE);
+
         gridApps = result.grid;
         adapter.setApps(gridApps);
 

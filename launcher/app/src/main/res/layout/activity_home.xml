@@ -29,10 +29,12 @@
             android:layout_height="960dp"
             android:layout_marginTop="-42dp" />
 
+        <!-- Behind the dock tiles: 20dp above and below the 101dp tiles (tile centre 427.5dp).
+             Width is set in code to fit the number of favourites. -->
         <View
             android:id="@+id/band"
             android:layout_width="840dp"
-            android:layout_height="162dp"
+            android:layout_height="141dp"
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="357dp"
             android:background="@drawable/band_bg" />
@@ -98,6 +100,7 @@
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="367dp"
             android:clipChildren="false"
+            android:gravity="center_horizontal"
             android:orientation="horizontal" />
 
         <androidx.recyclerview.widget.RecyclerView
@@ -105,7 +108,7 @@
             android:layout_width="816dp"
             android:layout_height="516dp"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="531dp"
+            android:layout_marginTop="510dp"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:descendantFocusability="blocksDescendants"
