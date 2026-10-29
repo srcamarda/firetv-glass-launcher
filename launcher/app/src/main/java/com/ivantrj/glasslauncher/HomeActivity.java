@@ -1103,7 +1103,7 @@ public class HomeActivity extends Activity {
         });
         banner.setClipToOutline(true);
         if (app.banner != null) tile.setBackground(null); // fully covered: avoids a dark fringe at the corners
-        int out = Math.round(dp(2.5f)); // stroke centre 2dp outside the tile edge
+        int out = Math.round(dp(1)); // the 1dp stroke sits right against the tile's outer edge
         tile.setForeground(new InsetDrawable(getDrawable(R.drawable.tile_border), -out));
     }
 
