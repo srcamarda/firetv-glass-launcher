@@ -39,6 +39,7 @@ public class HomeButtonService extends AccessibilityService {
 
     private static final String TAG = "GlassDiag";
     private static final String AMAZON_LAUNCHER = "com.amazon.tv.launcher";
+    private static final String AMAZON_HOME_CLASS = "HomeActivity"; // e.g. com.amazon.tv.launcher.ui.HomeActivity_vNext
     private static final long LONG_PRESS_MS = 500;   // hold Back this long to open Glass
     private static final long COVER_MAX_MS = 6000;   // overlay never stays longer than this
     private static final long COVER_HIDE_DELAY_MS = 150; // let Glass draw its first frame
@@ -173,7 +174,14 @@ public class HomeButtonService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 && AMAZON_LAUNCHER.contentEquals(event.getPackageName())) {
-            Log.i(TAG, "Amazon launcher window: " + event.getClassName());
+            CharSequence cls = event.getClassName();
+            // The Amazon launcher package also hosts Fire OS Settings (.ui.SettingsActivity):
+            // only its home screen (.ui.HomeActivity_vNext) is redirected to Glass.
+            if (cls == null || !cls.toString().contains(AMAZON_HOME_CLASS)) {
+                Log.i(TAG, "Amazon launcher window ignored (not home): " + cls);
+                return;
+            }
+            Log.i(TAG, "Amazon launcher window: " + cls);
             showCover();
             openGlass("Amazon launcher window");
         }
