@@ -19,7 +19,7 @@ This is a fork of [ivantrj/firetv-glass-launcher](https://github.com/ivantrj/fir
 - A tidier dock: one big title, no duplicate labels, a band that fits the favourites, a thin
   outline so grey banners don't melt into it.
 
-[![Stock Fire TV home on the left, Glass on the right](docs/before-after.jpg)](docs/before-after.jpg)
+[![Stock Fire OS 7 home on the left, Glass on the right](docs/before-after.jpg)](docs/before-after.jpg)
 
 **Everything is reversible.** Packages are disabled with `pm disable-user`, never uninstalled.
 The restore scripts turn everything back on and give Home back to Amazon's launcher.
@@ -109,7 +109,7 @@ update may switch things back on: run the debloat again.
 
 ## The launcher
 
-[![Glass app grid](docs/grid.png)](docs/grid.png)
+[![Glass home screen with the Bing wallpaper](docs/home.png)](docs/home.png)
 
 - **Top bar:** clock, greeting and date, Inputs, Wi-Fi and Settings.
 - **Dock:** up to four favourites. The big title and the background glow follow the focused app;
@@ -119,7 +119,11 @@ update may switch things back on: run the debloat again.
 - **Back** returns to the dock. Remembers the last focused tile when you come back from an app.
 - Native Java + RecyclerView: about a 4 MB APK.
 
+[![Glass app grid with 5 columns](docs/grid.png)](docs/grid.png)
+
 ### Menu button (☰) on an app
+
+[![Options menu on a favourite](docs/options.png)](docs/options.png)
 
 | Focused on | Options |
 |---|---|
@@ -129,6 +133,8 @@ update may switch things back on: run the debloat again.
 ### Settings button
 
 Opens **Fire TV settings** or **Glass settings**:
+
+[![Glass settings](docs/settings.png)](docs/settings.png)
 
 | Glass setting | |
 |---|---|
