@@ -12,11 +12,13 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Outline;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.InsetDrawable;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -31,6 +33,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.ViewTreeObserver;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
@@ -293,7 +296,7 @@ public class HomeActivity extends Activity {
             View cell = inflater.inflate(R.layout.item_tile, dockRow, false);
             Tiles.bind(cell, app);
             cell.findViewById(R.id.label).setVisibility(View.GONE); // the big dock title already names it
-            ((FrameLayout) cell.findViewById(R.id.tile)).setForeground(getDrawable(R.drawable.tile_border));
+            decorateDockTile(cell.findViewById(R.id.tile), app);
             dockRow.addView(cell);
         }
         // Band hugs the favourites: one 204dp cell each plus 12dp on both sides; hidden when empty
@@ -1080,6 +1083,28 @@ public class HomeActivity extends Activity {
             if (f.isFile()) stamp = stamp * 31 + f.lastModified() + f.length();
         }
         return stamp;
+    }
+
+    /**
+     * Dock tiles get a thin ring just outside their edge (on the band's grey), so banners in a
+     * similar grey still stand out. The ring can't live inside the tile's rounded clip, so the
+     * tile stops clipping and the banner clips its own corners instead. The ring scales with
+     * the tile on focus because it is the tile's foreground.
+     */
+    private void decorateDockTile(View tileView, AppInfo app) {
+        FrameLayout tile = (FrameLayout) tileView;
+        float radius = dp(14); // same as tile_bg
+        tile.setClipToOutline(false);
+        View banner = tile.findViewById(R.id.banner);
+        banner.setOutlineProvider(new ViewOutlineProvider() {
+            @Override public void getOutline(View v, Outline o) {
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
+            }
+        });
+        banner.setClipToOutline(true);
+        if (app.banner != null) tile.setBackground(null); // fully covered: avoids a dark fringe at the corners
+        int out = Math.round(dp(2.5f)); // stroke centre 2dp outside the tile edge
+        tile.setForeground(new InsetDrawable(getDrawable(R.drawable.tile_border), -out));
     }
 
     /**
